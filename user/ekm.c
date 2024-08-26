@@ -23,7 +23,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
@@ -46,7 +45,7 @@ int main(int argc, char** argv) {
 
 	char* dev_name = argv[1];
 	char* str_value = argv[2];
-	uint32_t value = (uint32_t) strtol(str_value, NULL, 0);
+	int value = (int) strtol(str_value, NULL, 0);
 
 	int fd;
 	int ret;
@@ -57,10 +56,17 @@ int main(int argc, char** argv) {
 		return EXIT_FAILURE;
 	}
 
-	struct ekm_data data = {
-		.value = value,
-	};
+	// read old value
+	struct ekm_data data = { 0 };
+	ret = ioctl(fd, EKM_IOCTL_READ, &data);
+	if (ret == -1) {
+		printf("ekm: EKM_IOCTL_READ failed\n");
+	} else {
+		printf("ekm: EKM_IOCTL_READ %i\n", data.value);
+	}
 
+	// write new value
+	data.value = value;
 	ret = ioctl(fd, EKM_IOCTL_WRITE, &data);
 	if (ret == -1) {
 		printf("ekm: EKM_IOCTL_WRITE failed\n");
@@ -68,6 +74,8 @@ int main(int argc, char** argv) {
 		printf("ekm: EKM_IOCTL_WRITE %i\n", data.value);
 	}
 
+	// read new value
+	data.value = 0;
 	ret = ioctl(fd, EKM_IOCTL_READ, &data);
 	if (ret == -1) {
 		printf("ekm: EKM_IOCTL_READ failed\n");

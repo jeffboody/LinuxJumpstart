@@ -78,20 +78,20 @@ Optionally enable printk for info logging.
 	$ echo 8 | sudo tee /proc/sys/kernel/printk
 	8
 
-Test ekm
+Test EKM
 --------
 
-Build the ekm.ko kernel module
+Build the EKM kernel module.
 
 	cd ekm/kernel
 	make
 
-Insert the ekm kernel module.
+Insert the EKM kernel module.
 
 	$ cd ekm/kernel
 	$ sudo insmod ekm.ko
 
-Check the ekm kernel module
+Check the EKM kernel module.
 
 	$ lsmod | grep ekm
 	ekm                    16384  0
@@ -106,33 +106,35 @@ Check the ekm kernel module
 	$ cat /proc/devices | grep ekm
 	506 ekm
 
-Build the ekm user client
+Build the EKM user client.
 
 	cd ekm/user
 	make
 
-Run the ekm user client.
+Run the EKM user client.
 
 	cd ekm/user
 	$ sudo ./ekm /dev/ekm0 44
+	ekm: EKM_IOCTL_READ 42
 	ekm: EKM_IOCTL_WRITE 44
 	ekm: EKM_IOCTL_READ 44
 
-Remove the ekm kernel module.
+Remove the EKM kernel module.
 
 	$ sudo rmmod ekm
 
 Check logs for errors.
 
 	$ dmesg | grep ekm
-	[436805.917405] ekm_probe: success
-	[436805.917455] ekm_init: success
-	[436834.142080] ekm_open: success
-	[436834.142098] ekm_ioctl: EKM_IOCTL_WRITE 44
-	[436834.142353] ekm_ioctl: EKM_IOCTL_READ 44
-	[436834.142370] ekm_release: success
-	[436853.583249] ekm_remove: success
-	[436853.583305] ekm_exit: success
+	[444626.344654] ekm_probe: success
+	[444626.344691] ekm_init: success
+	[444669.105073] ekm_open: success
+	[444669.105078] ekm_ioctl: EKM_IOCTL_READ 42
+	[444669.105142] ekm_ioctl: EKM_IOCTL_WRITE 44
+	[444669.105164] ekm_ioctl: EKM_IOCTL_READ 44
+	[444669.105168] ekm_release: success
+	[444717.254180] ekm_remove: success
+	[444717.254301] ekm_exit: success
 
 License
 =======

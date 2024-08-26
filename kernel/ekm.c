@@ -89,68 +89,68 @@ static const struct file_operations ekm_fops = {
 };
 
 int ekm_probe(struct platform_device *pdev) {
-    struct ekm *ekm;
-    int ret;
-    struct device *device;
+	struct ekm *ekm;
+	int ret;
+	struct device *device;
 
-    ekm = kzalloc(sizeof(*ekm), GFP_KERNEL);
-    if (!ekm) {
-        return -ENOMEM;
+	ekm = kzalloc(sizeof(*ekm), GFP_KERNEL);
+	if (!ekm) {
+		return -ENOMEM;
 	}
 
-    ret = alloc_chrdev_region(&ekm->dev, 0, 1, "ekm");
-    if (ret < 0) {
-        pr_err("ekm_probe: alloc_chrdev_region failed\n");
-        goto err_alloc_chrdev;
-    }
+	ret = alloc_chrdev_region(&ekm->dev, 0, 1, "ekm");
+	if (ret < 0) {
+		pr_err("ekm_probe: alloc_chrdev_region failed\n");
+		goto err_alloc_chrdev;
+	}
 
-    cdev_init(&ekm->cdev, &ekm_fops);
-    ekm->cdev.owner = THIS_MODULE;
-    ret = cdev_add(&ekm->cdev, ekm->dev, 1);
-    if (ret < 0) {
-        pr_err("ekm_probe: cdev_add failed\n");
-        goto err_cdev_add;
-    }
+	cdev_init(&ekm->cdev, &ekm_fops);
+	ekm->cdev.owner = THIS_MODULE;
+	ret = cdev_add(&ekm->cdev, ekm->dev, 1);
+	if (ret < 0) {
+		pr_err("ekm_probe: cdev_add failed\n");
+		goto err_cdev_add;
+	}
 
-    device = device_create(ekm_class, NULL, ekm->dev, NULL, "ekm%d", MINOR(ekm->dev));
-    if (IS_ERR(device)) {
-        ret = PTR_ERR(device);
-        pr_err("ekm_probe: device_create failed\n");
-        goto err_device_create;
-    }
+	device = device_create(ekm_class, NULL, ekm->dev, NULL, "ekm%d", MINOR(ekm->dev));
+	if (IS_ERR(device)) {
+		ret = PTR_ERR(device);
+		pr_err("ekm_probe: device_create failed\n");
+		goto err_device_create;
+	}
 
-    ekm->device = &pdev->dev;
-    ekm->data.value = 42;
+	ekm->device = &pdev->dev;
+	ekm->data.value = 42;
 
 	spin_lock_init(&ekm->spinlock);
 
-    platform_set_drvdata(pdev, ekm);
+	platform_set_drvdata(pdev, ekm);
 
 	pr_info("ekm_probe: success\n");
 
-    return 0;
+	return 0;
 
 err_device_create:
-    cdev_del(&ekm->cdev);
+	cdev_del(&ekm->cdev);
 err_cdev_add:
-    unregister_chrdev_region(ekm->dev, 1);
+	unregister_chrdev_region(ekm->dev, 1);
 err_alloc_chrdev:
-    kfree(ekm);
-    return ret;
+	kfree(ekm);
+	return ret;
 }
 
 int ekm_remove(struct platform_device *pdev)
 {
-    struct ekm *ekm = platform_get_drvdata(pdev);
+	struct ekm *ekm = platform_get_drvdata(pdev);
 
-    device_destroy(ekm_class, ekm->dev);
-    cdev_del(&ekm->cdev);
-    unregister_chrdev_region(ekm->dev, 1);
-    kfree(ekm);
+	device_destroy(ekm_class, ekm->dev);
+	cdev_del(&ekm->cdev);
+	unregister_chrdev_region(ekm->dev, 1);
+	kfree(ekm);
 
-    pr_info("ekm_remove: success\n");
+	pr_info("ekm_remove: success\n");
 
-    return 0;
+	return 0;
 }
 
 static struct platform_device *ekm_device;
@@ -174,25 +174,25 @@ static int __init ekm_init(void)
 		return PTR_ERR(ekm_device);
 	}
 
-    ekm_class = class_create(THIS_MODULE, "ekm");
-    if (IS_ERR(ekm_class)) {
-        pr_err("ekm_init: class_create failed\n");
-        ret = PTR_ERR(ekm_class);
+	ekm_class = class_create(THIS_MODULE, "ekm");
+	if (IS_ERR(ekm_class)) {
+		pr_err("ekm_init: class_create failed\n");
+		ret = PTR_ERR(ekm_class);
 		goto err_class_create;
-    }
+	}
 
-    ret = platform_driver_register(&ekm_driver);
-    if (ret < 0) {
-        pr_err("ekm_init: platform_driver_register failed\n");
-        goto err_platform_driver_register;
-    }
+	ret = platform_driver_register(&ekm_driver);
+	if (ret < 0) {
+		pr_err("ekm_init: platform_driver_register failed\n");
+		goto err_platform_driver_register;
+	}
 
 	pr_info("ekm_init: success\n");
 
-    return 0;
+	return 0;
 
 err_platform_driver_register:
-    class_destroy(ekm_class);
+	class_destroy(ekm_class);
 err_class_create:
 	platform_device_unregister(ekm_device);
 	return ret;
@@ -200,8 +200,8 @@ err_class_create:
 
 static void __exit ekm_exit(void)
 {
-    platform_driver_unregister(&ekm_driver);
-    class_destroy(ekm_class);
+	platform_driver_unregister(&ekm_driver);
+	class_destroy(ekm_class);
 	platform_device_unregister(ekm_device);
 
 	pr_info("ekm_exit: success\n");
