@@ -34,8 +34,8 @@ struct ekm_data {
 };
 
 #define EKM_IOC_MAGIC 'k'
-#define EKM_IOCTL_READ  _IOR(EKM_IOC_MAGIC, 1, struct ekm_data)
-#define EKM_IOCTL_WRITE _IOW(EKM_IOC_MAGIC, 2, struct ekm_data)
+#define EKM_IOCTL_GET_DATA _IOR(EKM_IOC_MAGIC, 1, struct ekm_data)
+#define EKM_IOCTL_SET_DATA _IOW(EKM_IOC_MAGIC, 2, struct ekm_data)
 
 int main(int argc, char** argv) {
 	if(argc != 3) {
@@ -56,31 +56,31 @@ int main(int argc, char** argv) {
 		return EXIT_FAILURE;
 	}
 
-	// read old value
+	// get old value
 	struct ekm_data data = { 0 };
-	ret = ioctl(fd, EKM_IOCTL_READ, &data);
+	ret = ioctl(fd, EKM_IOCTL_GET_DATA, &data);
 	if (ret == -1) {
-		printf("ekm: EKM_IOCTL_READ failed\n");
+		printf("ekm: EKM_IOCTL_GET_DATA failed\n");
 	} else {
-		printf("ekm: EKM_IOCTL_READ %i\n", data.value);
+		printf("ekm: EKM_IOCTL_GET_DATA %i\n", data.value);
 	}
 
-	// write new value
+	// set new value
 	data.value = value;
-	ret = ioctl(fd, EKM_IOCTL_WRITE, &data);
+	ret = ioctl(fd, EKM_IOCTL_SET_DATA, &data);
 	if (ret == -1) {
-		printf("ekm: EKM_IOCTL_WRITE failed\n");
+		printf("ekm: EKM_IOCTL_SET_DATA failed\n");
 	} else {
-		printf("ekm: EKM_IOCTL_WRITE %i\n", data.value);
+		printf("ekm: EKM_IOCTL_SET_DATA %i\n", data.value);
 	}
 
-	// read new value
+	// get new value
 	data.value = 0;
-	ret = ioctl(fd, EKM_IOCTL_READ, &data);
+	ret = ioctl(fd, EKM_IOCTL_GET_DATA, &data);
 	if (ret == -1) {
-		printf("ekm: EKM_IOCTL_READ failed\n");
+		printf("ekm: EKM_IOCTL_GET_DATA failed\n");
 	} else {
-		printf("ekm: EKM_IOCTL_READ %i\n", data.value);
+		printf("ekm: EKM_IOCTL_GET_DATA %i\n", data.value);
 	}
 
 	close(fd);

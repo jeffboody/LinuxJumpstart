@@ -36,6 +36,31 @@ experimenting with other Linux kernel concepts. Its
 simplicity and concise implementation make it an ideal
 resource for both beginners and experienced developers.
 
+Key Concepts
+------------
+
+Let's review the fundamental concepts demonstrated by the
+EKM kernel module.
+
+* Kernel Module: A kernel module is a piece of code that can
+  be dynamically loaded into or unloaded from the running
+  kernel, extending or modifying the kernel's functionality
+  without requiring a system reboot.
+* Platform Device: A software abstraction in the Linux
+  kernel representing a software-defined device, created
+  programmatically within the module.
+* Character Device: A character device is a type of device
+  in the Linux kernel that provides unbuffered, direct
+  access to hardware or a virtual device, allowing data to
+  be read from or written to as a stream of characters,
+  typically accessed through file operations in user space.
+* EKM Device: The struct ekm_device is a custom data
+  structure that represents an instance of the Echo Kernel
+  Module (EKM) device, encapsulating all the necessary
+  information and state for a single EKM character device,
+  including its character device structure, device node,
+  associated data, and device identifiers.
+
 Install Kernel Dependencies
 ---------------------------
 
@@ -115,9 +140,9 @@ Run the EKM user client.
 
 	cd ekm/user
 	$ sudo ./ekm /dev/ekm0 44
-	ekm: EKM_IOCTL_READ 42
-	ekm: EKM_IOCTL_WRITE 44
-	ekm: EKM_IOCTL_READ 44
+	ekm: EKM_IOCTL_GET_DATA 42
+	ekm: EKM_IOCTL_SET_DATA 44
+	ekm: EKM_IOCTL_GET_DATA 44
 
 Remove the EKM kernel module.
 
@@ -126,15 +151,15 @@ Remove the EKM kernel module.
 Check logs for errors.
 
 	$ dmesg | grep ekm
-	[444626.344654] ekm_probe: success
-	[444626.344691] ekm_init: success
-	[444669.105073] ekm_open: success
-	[444669.105078] ekm_ioctl: EKM_IOCTL_READ 42
-	[444669.105142] ekm_ioctl: EKM_IOCTL_WRITE 44
-	[444669.105164] ekm_ioctl: EKM_IOCTL_READ 44
-	[444669.105168] ekm_release: success
-	[444717.254180] ekm_remove: success
-	[444717.254301] ekm_exit: success
+	[449062.510893] ekm_platform_driver_probe: success
+	[449062.510915] ekm_module_init: success
+	[449098.878600] ekm_cdev_open: success
+	[449098.878605] ekm_cdev_ioctl: EKM_IOCTL_GET_DATA 42
+	[449098.878699] ekm_cdev_ioctl: EKM_IOCTL_SET_DATA 44
+	[449098.878703] ekm_cdev_ioctl: EKM_IOCTL_GET_DATA 44
+	[449098.878728] ekm_cdev_release: success
+	[449141.127783] ekm_platform_driver_remove: success
+	[449141.127859] ekm_module_exit: success
 
 License
 =======
@@ -142,7 +167,8 @@ License
 The EKM was developed by
 [Jeff Boody](mailto:jeffboody@gmail.com)
 using
-[Cursor: The AI Code Editor](https://www.cursor.com/).
+[Cursor: The AI Code Editor](https://www.cursor.com/) and
+[Google Gemini](https://gemini.google.com/).
 
 The user space component is licensed under The MIT License.
 
