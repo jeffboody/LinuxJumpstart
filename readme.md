@@ -14,9 +14,9 @@ such modules.
 The primary purpose of EKM is to demonstrate how to create a
 character device that can be accessed from a user-space
 application. This device offers two ioctl commands,
-EKM_IOCTL_READ and EKM_IOCTL_WRITE, which enable users to
-retrieve or modify a specific value stored within the kernel
-module.
+EKM_IOCTL_GET_DATA and EKM_IOCTL_SET_DATA, which enable
+users to retrieve or modify a specific value stored within
+the kernel module.
 
 By studying EKM, developers can gain insights into the
 following key aspects of character device development:
