@@ -36,6 +36,11 @@ experimenting with other Linux kernel concepts. Its
 simplicity and concise implementation make it an ideal
 resource for both beginners and experienced developers.
 
+For a deeper understanding of commonly used Linux kernel
+functions and data structures, refer to the
+[Kernel Documentation](readme-kernel.md) within this
+repository.
+
 Key Concepts
 ------------
 
@@ -54,6 +59,27 @@ EKM kernel module.
   access to hardware or a virtual device, allowing data to
   be read from or written to as a stream of characters,
   typically accessed through file operations in user space.
+* Error Handling: In Linux kernel programming, IS_ERR is a
+  macro used to check if a pointer represents an error
+  condition, PTR_ERR extracts the error code from such a
+  pointer, and ERR_PTR encodes an error code into a pointer,
+  collectively providing a mechanism to return and handle
+  error codes through pointer values in functions that would
+  normally return pointers.
+* User Memory: In Linux kernel programming, user is an
+  annotation indicating memory that resides in user space,
+  while copy_to_user and copy_from_user are safe functions
+  used to transfer data between kernel space and user space,
+  ensuring proper access checks and preventing direct
+  dereferencing of user-space pointers from within the
+  kernel.
+* Synchronization: Spinlocks are a lightweight
+  synchronization mechanism in the Linux kernel that provide
+  mutual exclusion by causing a thread to busy-wait (spin)
+  in a tight loop until the lock becomes available,
+  typically used for protecting short, critical sections of
+  code in environments where sleeping is not allowed, such
+  as interrupt handlers or when holding other locks.
 * EKM Device: The struct ekm_device is a custom data
   structure that represents an instance of the Echo Kernel
   Module (EKM) device, encapsulating all the necessary
@@ -162,7 +188,7 @@ Check logs for errors.
 	[449141.127859] ekm_module_exit: success
 
 License
-=======
+-------
 
 The EKM was developed by
 [Jeff Boody](mailto:jeffboody@gmail.com)
