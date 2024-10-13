@@ -193,7 +193,8 @@ License
 The EKM was developed by
 [Jeff Boody](mailto:jeffboody@gmail.com)
 using
-[Cursor: The AI Code Editor](https://www.cursor.com/) and
+[Cursor: The AI Code Editor](https://www.cursor.com/),
+[Perplexity](https://www.perplexity.ai) and
 [Google Gemini](https://gemini.google.com/).
 
 The user space component is licensed under The MIT License.

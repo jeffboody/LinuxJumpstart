@@ -100,6 +100,8 @@ int ekm_platform_driver_probe(struct platform_device *pdev) {
 		return -ENOMEM;
 	}
 
+	platform_set_drvdata(pdev, ekm_dev);
+
 	ret = alloc_chrdev_region(&ekm_dev->dev, 0, 1, "ekm");
 	if (ret < 0) {
 		pr_err("ekm_platform_driver_probe: alloc_chrdev_region failed\n");
@@ -108,11 +110,6 @@ int ekm_platform_driver_probe(struct platform_device *pdev) {
 
 	cdev_init(&ekm_dev->cdev, &ekm_cdev_fops);
 	ekm_dev->cdev.owner = THIS_MODULE;
-	ret = cdev_add(&ekm_dev->cdev, ekm_dev->dev, 1);
-	if (ret < 0) {
-		pr_err("ekm_platform_driver_probe: cdev_add failed\n");
-		goto err_cdev_add;
-	}
 
 	device = device_create(ekm_class, NULL, ekm_dev->dev, NULL, "ekm%d",
 		MINOR(ekm_dev->dev));
@@ -127,15 +124,19 @@ int ekm_platform_driver_probe(struct platform_device *pdev) {
 
 	spin_lock_init(&ekm_dev->spinlock);
 
-	platform_set_drvdata(pdev, ekm_dev);
+	ret = cdev_add(&ekm_dev->cdev, ekm_dev->dev, 1);
+	if (ret < 0) {
+		pr_err("ekm_platform_driver_probe: cdev_add failed\n");
+		goto err_cdev_add;
+	}
 
 	pr_info("ekm_platform_driver_probe: success\n");
 
 	return 0;
 
-err_device_create:
-	cdev_del(&ekm_dev->cdev);
 err_cdev_add:
+	device_destroy(ekm_class, ekm_dev->dev);
+err_device_create:
 	unregister_chrdev_region(ekm_dev->dev, 1);
 err_alloc_chrdev:
 	kfree(ekm_dev);
@@ -146,8 +147,8 @@ int ekm_platform_driver_remove(struct platform_device *pdev)
 {
 	struct ekm_device *ekm_dev = platform_get_drvdata(pdev);
 
-	device_destroy(ekm_class, ekm_dev->dev);
 	cdev_del(&ekm_dev->cdev);
+	device_destroy(ekm_class, ekm_dev->dev);
 	unregister_chrdev_region(ekm_dev->dev, 1);
 	kfree(ekm_dev);
 
