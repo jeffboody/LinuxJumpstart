@@ -11,6 +11,8 @@ Current tutorials:
 
 * [Echo Kernel Module](ekm/readme.md): A simple character
   device driver
+* [DMA Ping Pong](dmapp/readme.md): A simple DMA buffer and
+  fence tutorial
 
 AI-Assisted Development
 -----------------------
