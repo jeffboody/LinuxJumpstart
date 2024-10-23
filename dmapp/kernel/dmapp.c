@@ -49,7 +49,6 @@ struct dmapp_buffer {
 	void *vaddr;
 	dma_addr_t paddr;
 	size_t size;
-	struct sg_table *sgt;
 	struct device *dev;
 };
 
@@ -64,19 +63,22 @@ static struct sg_table *dmapp_buf_map(struct dma_buf_attachment *attachment,
 	}
 
 	if (sg_alloc_table(sgt, 1, GFP_KERNEL)) {
-		kfree(sgt);
-		return ERR_PTR(-ENOMEM);
+		goto err_sg_alloc_table;
 	}
 
 	sg_set_page(sgt->sgl, virt_to_page(buffer->vaddr), buffer->size, 0);
 
 	if (dma_map_sg(attachment->dev, sgt->sgl, sgt->nents, dir) == 0) {
-		sg_free_table(sgt);
-		kfree(sgt);
-		return ERR_PTR(-ENOMEM);
+		goto err_dma_map_sg;
 	}
 
 	return sgt;
+
+err_dma_map_sg:
+	sg_free_table(sgt);
+err_sg_alloc_table:
+	kfree(sgt);
+	return ERR_PTR(-ENOMEM);
 }
 
 static void dmapp_buf_unmap(struct dma_buf_attachment *attachment,
@@ -121,24 +123,24 @@ static int dmapp_cdev_open(struct inode *inode, struct file *file) {
 
 	dmapp_dev = container_of(inode->i_cdev, struct dmapp_device, cdev);
 
+	user = kzalloc(sizeof(*user), GFP_KERNEL);
+	if (!user) {
+		return -ENOMEM;
+	}
+
 	spin_lock(&dmapp_dev->spinlock);
 
-	/* assign parity to user */
+	/* Assign parity to user */
 	if (dmapp_dev->user[0] == NULL) {
 		parity = 0;
 	} else if (dmapp_dev->user[1] == NULL) {
 		parity = 1;
 	} else {
-		pr_err("dmapp_cdev_open: invalid user\n");
 		spin_unlock(&dmapp_dev->spinlock);
-		return -EINVAL;
+		pr_err("dmapp_cdev_open: invalid user\n");
+		goto err_user;
 	}
 
-	user = kzalloc(sizeof(*user), GFP_KERNEL);
-	if (!user) {
-		spin_unlock(&dmapp_dev->spinlock);
-		return -ENOMEM;
-	}
 	user->dmapp_dev = dmapp_dev;
 	dmapp_dev->user[parity] = user;
 
@@ -149,6 +151,10 @@ static int dmapp_cdev_open(struct inode *inode, struct file *file) {
 	pr_info("dmapp_cdev_open: success\n");
 
 	return 0;
+
+err_user:
+	kfree(user);
+	return -EINVAL;
 }
 
 static int dmapp_cdev_release(struct inode *inode, struct file *file) {
@@ -159,6 +165,7 @@ static int dmapp_cdev_release(struct inode *inode, struct file *file) {
 
 	spin_lock(&dmapp_dev->spinlock);
 
+	/* Disconnect the user */
 	if (dmapp_dev->user[0] == user) {
 		dmapp_dev->user[0] = NULL;
 		if (user->is_locked) {
@@ -171,10 +178,10 @@ static int dmapp_cdev_release(struct inode *inode, struct file *file) {
 		}
 	}
 
+	spin_unlock(&dmapp_dev->spinlock);
+
 	file->private_data = NULL;
 	kfree(user);
-
-	spin_unlock(&dmapp_dev->spinlock);
 
 	/* Optionally reset the signal_fence to prevent deadlocks */
 	if (signal_fence && !dma_fence_is_signaled(signal_fence)) {
@@ -228,48 +235,46 @@ static long dmapp_cdev_ioctl(struct file *file, unsigned int cmd,
 		signal_fence = dmapp_dev->fence[0];
 		wait_fence = dmapp_dev->fence[1];
 	} else {
+		spin_unlock(&dmapp_dev->spinlock);
 		pr_err("dmapp_cdev_ioctl: invalid user\n");
-		ret = -EINVAL;
-		goto unlock;
+		return -EINVAL;
 	}
 
-	/* Handle commands that don't require releasing the spinlock */
+	/* Handle commands that require synchronization */
 	switch (cmd) {
 	case DMAPP_IOCTL_BUFFER_LOCK:
-		pr_info("DMAPP_IOCTL_BUFFER_LOCK\n");
 		if (user->is_locked) {
 			/* Ignore ioctl when already in locked state */
-			goto unlock;
+			spin_unlock(&dmapp_dev->spinlock);
+			return 0;
 		}
 		break;
 	case DMAPP_IOCTL_BUFFER_UNLOCK:
-		pr_info("DMAPP_IOCTL_BUFFER_UNLOCK\n");
 		if (!user->is_locked) {
 			/* Ignore ioctl when already in unlocked state */
-			goto unlock;
+			spin_unlock(&dmapp_dev->spinlock);
+			return 0;
 		}
 		break;
+	}
+
+	spin_unlock(&dmapp_dev->spinlock);
+
+	/* Handle commands that might sleep or do not require synchronization */
+	switch (cmd) {
 	case DMAPP_IOCTL_GET_BUFFER_SIZE:
 		pr_info("DMAPP_IOCTL_GET_BUFFER_SIZE\n");
-		ret = DMAPP_BUFFER_SIZE;
-		goto unlock;
+		return DMAPP_BUFFER_SIZE;
 	case DMAPP_IOCTL_GET_BUFFER_PARITY:
 		pr_info("DMAPP_IOCTL_GET_BUFFER_PARITY\n");
-		ret = parity;
-		goto unlock;
+		return parity;
 	case DMAPP_IOCTL_GET_BUFFER_FD:
 		pr_info("DMAPP_IOCTL_GET_BUFFER_FD\n");
 		ret = dma_buf_fd(dmapp_dev->buf, 0);
 		if (ret < 0) {
 			pr_err("dmapp_cdev_ioctl: dma_buf_fd failed with %i\n", ret);
 		}
-		goto unlock;
-	}
-
-	/* For commands that might sleep, release the spinlock */
-	spin_unlock(&dmapp_dev->spinlock);
-
-	switch (cmd) {
+		break;
 	case DMAPP_IOCTL_BUFFER_LOCK:
 		pr_info("DMAPP_IOCTL_BUFFER_LOCK\n");
 		/* Wait for our turn to process the buffer */
@@ -306,10 +311,6 @@ static long dmapp_cdev_ioctl(struct file *file, unsigned int cmd,
 	}
 
 	return ret;
-
-unlock:
-	spin_unlock(&dmapp_dev->spinlock);
-	return ret;
 }
 
 static const struct file_operations dmapp_cdev_fops = {
@@ -327,7 +328,10 @@ static int dmapp_platform_driver_probe(struct platform_device *pdev) {
 	struct dmapp_buffer *buffer;
 	void *vaddr;
 	dma_addr_t paddr;
-	struct dma_buf_export_info exp_info = {0};
+	size_t buf_size = DMAPP_BUFFER_SIZE * sizeof(int);
+	struct dma_buf_export_info exp_info = {
+		.exp_name = "dmapp_buffer",
+	};
 
 	dmapp_dev = kzalloc(sizeof(*dmapp_dev), GFP_KERNEL);
 	if (!dmapp_dev) {
@@ -343,7 +347,6 @@ static int dmapp_platform_driver_probe(struct platform_device *pdev) {
 	}
 
 	cdev_init(&dmapp_dev->cdev, &dmapp_cdev_fops);
-	dmapp_dev->cdev.owner = THIS_MODULE;
 
 	device = device_create(dmapp_class, NULL, dmapp_dev->dev, NULL, "dmapp%d",
 		MINOR(dmapp_dev->dev));
@@ -395,21 +398,22 @@ static int dmapp_platform_driver_probe(struct platform_device *pdev) {
 		goto err_alloc_buffer;
 	}
 
-	vaddr = dma_alloc_coherent(dmapp_dev->device, DMAPP_BUFFER_SIZE * sizeof(int),
-		&paddr, GFP_KERNEL);
+	vaddr = dma_alloc_coherent(dmapp_dev->device, buf_size, &paddr, GFP_KERNEL);
 	if (!vaddr) {
 		ret = -ENOMEM;
+		/* Avoid double free if cdev_add fails */
+		kfree(buffer);
 		goto err_alloc_coherent;
 	}
 
 	buffer->vaddr = vaddr;
 	buffer->paddr = paddr;
-	buffer->size = DMAPP_BUFFER_SIZE * sizeof(int);
+	buffer->size = buf_size;
 	buffer->dev = dmapp_dev->device;
 
 	/* Export DMA buffer */
 	exp_info.ops = &dmapp_dmabuf_ops;
-	exp_info.size = DMAPP_BUFFER_SIZE*sizeof(int);
+	exp_info.size = buf_size;
 	exp_info.flags = O_RDWR;
 	exp_info.priv = buffer;
 
@@ -417,6 +421,10 @@ static int dmapp_platform_driver_probe(struct platform_device *pdev) {
 	if (IS_ERR(dmapp_dev->buf)) {
 		ret = PTR_ERR(dmapp_dev->buf);
 		pr_err("dmapp_platform_driver_probe: dma_buf_export failed\n");
+		/* Avoid double free if cdev_add fails */
+		dma_free_coherent(dmapp_dev->device, buffer->size, buffer->vaddr,
+			buffer->paddr);
+		kfree(buffer);
 		goto err_dma_buf_export;
 	}
 
@@ -433,10 +441,7 @@ static int dmapp_platform_driver_probe(struct platform_device *pdev) {
 err_cdev_add:
 	dma_buf_put(dmapp_dev->buf);
 err_dma_buf_export:
-	dma_free_coherent(dmapp_dev->device, buffer->size, buffer->vaddr,
-		buffer->paddr);
 err_alloc_coherent:
-	kfree(buffer);
 err_alloc_buffer:
 err_fence_signal:
 	dma_fence_put(dmapp_dev->fence[1]);
@@ -454,12 +459,9 @@ err_alloc_chrdev:
 static int dmapp_platform_driver_remove(struct platform_device *pdev)
 {
 	struct dmapp_device *dmapp_dev = platform_get_drvdata(pdev);
-	struct dmapp_buffer *buffer = dmapp_dev->buf->priv;
 
 	cdev_del(&dmapp_dev->cdev);
 	dma_buf_put(dmapp_dev->buf);
-	dma_free_coherent(dmapp_dev->device, buffer->size, buffer->vaddr, buffer->paddr);
-	kfree(buffer);
 	dma_fence_put(dmapp_dev->fence[1]);
 	dma_fence_put(dmapp_dev->fence[0]);
 	device_destroy(dmapp_class, dmapp_dev->dev);
